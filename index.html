@@ -163,114 +163,128 @@
 
     <audio id="bgMusic" style="display: none;"></audio>
 
-    <script>
-        const audio = document.getElementById('bgMusic');
-        let currentTrack = 1;
-        const totalTracks = 20;
+   <script>
+    const audio = document.getElementById('bgMusic');
+    let currentTrack = 1;
+    const totalTracks = 20;
+    let airportCode = null;
 
-        function loadRandomTrack() {
-            currentTrack = Math.floor(Math.random() * totalTracks) + 1;
-            const trackNumber = currentTrack.toString().padStart(2, '0');
-            audio.src = `/Music/${trackNumber}.mp3`;
-            return audio.play();
-        }
-
-        function toggleMusic() {
-            if (audio.paused) {
-                loadRandomTrack()
-                    .catch(err => console.error('Error playing music:', err));
-            } else {
-                audio.pause();
+    function promptForAirportCode() {
+        while (!airportCode || !/^[A-Z]{3,4}$/.test(airportCode)) {
+            airportCode = prompt("Please enter your nearest airport code (e.g., KHRO):").toUpperCase();
+            if (!airportCode) {
+                alert("Airport code cannot be empty. Please try again.");
+            } else if (!/^[A-Z]{3,4}$/.test(airportCode)) {
+                alert("Invalid format. Please enter a valid 3-4 letter airport code.");
             }
         }
+    }
 
-        function skipTrack() {
-            loadRandomTrack()
-                .catch(err => console.error('Error skipping track:', err));
+    function loadRandomTrack() {
+        currentTrack = Math.floor(Math.random() * totalTracks) + 1;
+        const trackNumber = currentTrack.toString().padStart(2, '0');
+        audio.src = `/Music/${trackNumber}.mp3`;
+        return audio.play();
+    }
+
+    function toggleMusic() {
+        if (audio.paused) {
+            loadRandomTrack().catch(err => console.error('Error playing music:', err));
+        } else {
+            audio.pause();
         }
+    }
 
-        audio.addEventListener('ended', () => {
-            loadRandomTrack()
-                .catch(err => console.error('Error loading next track:', err));
-        });
+    function skipTrack() {
+        loadRandomTrack().catch(err => console.error('Error skipping track:', err));
+    }
 
-        async function fetchWeatherData() {
-            const headers = {
-                'User-Agent': '(WeatherSTAR Emulator, contact@example.com)',
-                'Accept': 'application/geo+json'
-            };
-            
-            try {
-                const pointResponse = await fetch('https://api.weather.gov/points/36.2297,-93.1075', { headers });
-                if (!pointResponse.ok) {
-                    throw new Error(`Point endpoint failed: ${pointResponse.status}`);
-                }
+    audio.addEventListener('ended', () => {
+        loadRandomTrack().catch(err => console.error('Error loading next track:', err));
+    });
 
-                const pointData = await pointResponse.json();
-                const stationsResponse = await fetch(pointData.properties.observationStations, { headers });
-                if (!stationsResponse.ok) {
-                    throw new Error(`Stations endpoint failed: ${stationsResponse.status}`);
-                }
+    async function fetchWeatherData() {
+        if (!airportCode) return;
 
-                const stationsData = await stationsResponse.json();
-                const nearestStation = stationsData.features[0].id;
+        const headers = {
+            'User-Agent': '(WeatherSTAR Emulator, contact@example.com)',
+            'Accept': 'application/geo+json'
+        };
 
-                const [forecastResponse, observationResponse] = await Promise.all([
-                    fetch(pointData.properties.forecast, { headers }),
-                    fetch(`${nearestStation}/observations/latest`, { headers })
-                ]);
-
-                if (!forecastResponse.ok || !observationResponse.ok) {
-                    throw new Error('Forecast or observation endpoint failed.');
-                }
-
-                const [forecastData, observationData] = await Promise.all([
-                    forecastResponse.json(),
-                    observationResponse.json()
-                ]);
-
-                updateDisplay(observationData.properties, forecastData.properties.periods[0]);
-            } catch (error) {
-                console.error('Weather data fetch error:', error);
-                document.getElementById('temperature').textContent = 'Error';
-                document.getElementById('conditions').textContent = 'Weather data unavailable';
-                document.getElementById('details').innerHTML = 'Please try again later';
-                document.getElementById('ticker-text').textContent = 
-                    'WEATHER DATA TEMPORARILY UNAVAILABLE... PLEASE STAND BY...';
+        try {
+            const pointResponse = await fetch(`https://api.weather.gov/points/${airportCode}`, { headers });
+            if (!pointResponse.ok) {
+                throw new Error(`Point endpoint failed: ${pointResponse.status}`);
             }
+
+            const pointData = await pointResponse.json();
+            const stationsResponse = await fetch(pointData.properties.observationStations, { headers });
+            if (!stationsResponse.ok) {
+                throw new Error(`Stations endpoint failed: ${stationsResponse.status}`);
+            }
+
+            const stationsData = await stationsResponse.json();
+            const nearestStation = stationsData.features[0].id;
+
+            const [forecastResponse, observationResponse] = await Promise.all([
+                fetch(pointData.properties.forecast, { headers }),
+                fetch(`${nearestStation}/observations/latest`, { headers })
+            ]);
+
+            if (!forecastResponse.ok || !observationResponse.ok) {
+                throw new Error('Forecast or observation endpoint failed.');
+            }
+
+            const [forecastData, observationData] = await Promise.all([
+                forecastResponse.json(),
+                observationResponse.json()
+            ]);
+
+            updateDisplay(observationData.properties, forecastData.properties.periods[0]);
+        } catch (error) {
+            console.error('Weather data fetch error:', error);
+            document.getElementById('temperature').textContent = 'Error';
+            document.getElementById('conditions').textContent = 'Weather data unavailable';
+            document.getElementById('details').innerHTML = 'Please try again later';
+            document.getElementById('ticker-text').textContent =
+                'WEATHER DATA TEMPORARILY UNAVAILABLE... PLEASE STAND BY...';
         }
+    }
 
-        function updateDisplay(current, forecast) {
-            const tempF = Math.round(current.temperature.value * 9 / 5 + 32);
-            const windSpeedMPH = Math.round(current.windSpeed.value * 2.237);
-            const humidity = Math.round(current.relativeHumidity.value);
-            const pressureInHg = (current.barometricPressure.value * 0.0002953).toFixed(2);
+    function updateDisplay(current, forecast) {
+        const tempF = Math.round(current.temperature.value * 9 / 5 + 32);
+        const windSpeedMPH = Math.round(current.windSpeed.value * 2.237);
+        const humidity = Math.round(current.relativeHumidity.value);
+        const pressureInHg = (current.barometricPressure.value * 0.0002953).toFixed(2);
 
-            document.getElementById('temperature').textContent = `${tempF}°F`;
-            document.getElementById('conditions').textContent = forecast.shortForecast;
-            document.getElementById('details').innerHTML = 
-                `Wind: ${windSpeedMPH} MPH<br>` +
-                `Humidity: ${humidity}%<br>` +
-                `Pressure: ${pressureInHg} inHg`;
+        document.getElementById('temperature').textContent = `${tempF}°F`;
+        document.getElementById('conditions').textContent = forecast.shortForecast;
+        document.getElementById('details').innerHTML = 
+            `Wind: ${windSpeedMPH} MPH<br>` +
+            `Humidity: ${humidity}%<br>` +
+            `Pressure: ${pressureInHg} inHg`;
 
-            document.getElementById('ticker-text').textContent = 
-                `YOUR CURRENT CONDITIONS... TEMPERATURE: ${tempF}°F... ` +
-                `${forecast.shortForecast.toUpperCase()}... WIND: ${windSpeedMPH} MPH... ` +
-                `HUMIDITY: ${humidity}%... PRESSURE: ${pressureInHg} INHG... ` +
-                `UPDATED: ${new Date().toLocaleTimeString()}`;
+        document.getElementById('ticker-text').textContent = 
+            `YOUR CURRENT CONDITIONS... TEMPERATURE: ${tempF}°F... ` +
+            `${forecast.shortForecast.toUpperCase()}... WIND: ${windSpeedMPH} MPH... ` +
+            `HUMIDITY: ${humidity}%... PRESSURE: ${pressureInHg} INHG... ` +
+            `UPDATED: ${new Date().toLocaleTimeString()}`;
 
-            updateRadar();
-        }
+        updateRadar();
+    }
 
-        function updateRadar() {
-            const timestamp = new Date().getTime();
-            document.getElementById('radar-image').src = 
-                `https://radar.weather.gov/ridge/standard/KLZK_loop.gif?${timestamp}`;
-        }
+    function updateRadar() {
+        const timestamp = new Date().getTime();
+        document.getElementById('radar-image').src = 
+            `https://radar.weather.gov/ridge/standard/${airportCode}_loop.gif?${timestamp}`;
+    }
 
+    document.addEventListener('DOMContentLoaded', () => {
+        promptForAirportCode();
         fetchWeatherData();
         setInterval(fetchWeatherData, 300000);
         setInterval(updateRadar, 300000);
-    </script>
+    });
+</script>
 </body>
 </html>

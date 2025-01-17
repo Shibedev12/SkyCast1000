@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherSTAR 3000 - Harrison, AR</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: "Helvetica", "Arial", sans-serif;
+            overflow: hidden;
+        }
+        
+        .screen {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(180deg, #0066cc 0%, #0044aa 100%);
+            overflow: hidden;
+        }
+        
+        .cloud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="rgba(255,255,255,0.5)" d="M100,200 C150,150 200,150 250,200 S350,250 400,200 S500,150 550,200 S650,250 700,200 S800,150 850,200"/></svg>');
+            background-size: cover;
+            opacity: 0.3;
+            animation: cloudMove 120s linear infinite;
+        }
+
+        .logo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 150px; /* Adjusted size */
+            height: 115px; /* Maintained aspect ratio */
+            z-index: 2;
+            background: white;
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .weather-info {
+            position: absolute;
+            bottom: 60px; /* Positioned above ticker */
+            left: 0;
+            right: 0;
+            color: white;
+            padding: 20px 40px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-size: 36px;
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .temperature {
+            font-size: 72px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .conditions {
+            margin-bottom: 15px;
+        }
+
+        .details {
+            font-size: 28px;
+            line-height: 1.5;
+        }
+
+        .radar {
+            position: absolute;
+            top: 80px;
+            right: 40px;
+            width: 300px;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid white;
+            border-radius: 5px;
+        }
+
+        .ticker {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffff00;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .ticker-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 30s linear infinite;
+            font-size: 24px;
+            line-height: 40px;
+        }
+
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        @keyframes cloudMove {
+            from { transform: translateX(0); }
+            to { transform: translateX(-100%); }
+        }
+
+        #audioControls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="screen">
+        <div class="cloud-overlay"></div>
+        <div class="logo">
+            <img src="/images/twc-logo.png" alt="The Weather Channel">
+        </div>
+        <div id="audioControls">
+            <button onclick="toggleMusic()">Play/Pause Music</button>
+            <button onclick="skipTrack()">Skip Track</button>
+        </div>
+        <div class="weather-info">
+            <div class="temperature" id="temperature">--°F</div>
+            <div class="conditions" id="conditions">--</div>
+            <div class="details" id="details">
+                Wind: -- MPH<br>
+                Humidity: --%<br>
+                Pressure: -- inHg
+            </div>
+        </div>
+        <div class="radar">
+            <img id="radar-image" width="100%" height="100%" alt="Radar">
+        </div>
+        <div class="ticker">
+            <div class="ticker-text" id="ticker-text">
+                HARRISON, ARKANSAS CURRENT CONDITIONS...
+            </div>
+        </div>
+    </div>
+
+    <audio id="bgMusic" style="display: none;"></audio>
+
+    <script>
+        // Music handling
+        const audio = document.getElementById('bgMusic');
+        let currentTrack = 1;
+        const totalTracks = 20;
+
+        function loadRandomTrack() {
+            currentTrack = Math.floor(Math.random() * totalTracks) + 1;
+            const trackNumber = currentTrack.toString().padStart(2, '0');
+            audio.src = `/Music/${trackNumber}.mp3`;
+            return audio.play();
+        }
+
+        function toggleMusic() {
+            if (audio.paused) {
+                loadRandomTrack()
+                    .catch(err => console.error('Error playing music:', err));
+            } else {
+                audio.pause();
+            }
+        }
+
+        function skipTrack() {
+            loadRandomTrack()
+                .catch(err => console.error('Error skipping track:', err));
+        }
+
+        // When one song ends, play another random one
+        audio.addEventListener('ended', () => {
+            loadRandomTrack()
+                .catch(err => console.error('Error loading next track:', err));
+        });
+        async function fetchWeatherData() {
+    const headers = {
+        'User-Agent': '(WeatherSTAR Emulator, contact@example.com)',
+        'Accept': 'application/geo+json'
+    };
+    
+    try {
+        // Get point data
+        const pointResponse = await fetch(
+            'https://api.weather.gov/points/36.2297,-93.1075',
+            { headers }
+        );
+        
+        if (!pointResponse.ok) {
+            throw new Error(`Point endpoint failed: ${pointResponse.status}`);
+        }
+        
+        const pointData = await pointResponse.json();
+        
+        // Get stations first to find nearest station
+        const stationsResponse = await fetch(
+            pointData.properties.observationStations,
+            { headers }
+        );
+        
+        if (!stationsResponse.ok) {
+            throw new Error(`Stations endpoint failed: ${stationsResponse.status}`);
+        }
+        
+        const stationsData = await stationsResponse.json();
+        const nearestStation = stationsData.features[0].id;
+        
+        // Get forecast and current conditions
+        const [forecastResponse, observationResponse] = await Promise.all([
+            fetch(pointData.properties.forecast, { headers }),
+            fetch(`${nearestStation}/observations/latest`, { headers })
+        ]);
+        
+        if (!forecastResponse.ok) {
+            throw new Error(`Forecast endpoint failed: ${forecastResponse.status}`);
+        }
+        if (!observationResponse.ok) {
+            throw new Error(`Observation endpoint failed: ${observationResponse.status}`);
+        }
+
+        const [forecastData, observationData] = await Promise.all([
+            forecastResponse.json(),
+            observationResponse.json()
+        ]);
+
+        // Update display with the data
+        updateDisplay(observationData.properties, forecastData.properties.periods[0]);
+        
+    } catch (error) {
+        console.error('Weather data fetch error:', error);
+        
+        // Update display with error state
+        document.getElementById('temperature').textContent = 'Error';
+        document.getElementById('conditions').textContent = 'Weather data unavailable';
+        document.getElementById('details').innerHTML = 'Please try again later';
+        document.getElementById('ticker-text').textContent = 
+            'WEATHER DATA TEMPORARILY UNAVAILABLE... PLEASE STAND BY...';
+    }
+}
+
+        function updateDisplay(current, forecast) {
+            const tempF = Math.round(current.temperature.value * 9/5 + 32);
+            const windSpeedMPH = Math.round(current.windSpeed.value * 2.237);
+            const humidity = Math.round(current.relativeHumidity.value);
+            const pressureInHg = (current.barometricPressure.value * 0.0002953).toFixed(2);
+
+            document.getElementById('temperature').textContent = `${tempF}°F`;
+            document.getElementById('conditions').textContent = forecast.shortForecast;
+            document.getElementById('details').innerHTML = 
+                `Wind: ${windSpeedMPH} MPH<br>` +
+                `Humidity: ${humidity}%<br>` +
+                `Pressure: ${pressureInHg} inHg`;
+
+            // Update ticker text
+            document.getElementById('ticker-text').textContent = 
+                `HARRISON, ARKANSAS CURRENT CONDITIONS... TEMPERATURE: ${tempF}°F... ` +
+                `${forecast.shortForecast.toUpperCase()}... WIND: ${windSpeedMPH} MPH... ` +
+                `HUMIDITY: ${humidity}%... PRESSURE: ${pressureInHg} INHG... ` +
+                `UPDATED: ${new Date().toLocaleTimeString()}`;
+
+            updateRadar();
+        }
+
+        function updateRadar() {
+            const timestamp = new Date().getTime();
+            document.getElementById('radar-image').src = 
+                `https://radar.weather.gov/ridge/standard/KLZK_loop.gif?${timestamp}`;
+        }
+
+        // Initial load
+        fetchWeatherData();
+
+        // Refresh every 5 minutes
+        setInterval(fetchWeatherData, 300000);
+        setInterval(updateRadar, 300000);
+    </script>
+</body>
+</html>

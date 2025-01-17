@@ -260,10 +260,10 @@
     }
 
     function updateRadar() {
-        const timestamp = new Date().getTime();
-        document.getElementById('radar-image').src = 
-            `https://radar.weather.gov/ridge/standard/latest_Loop.gif?${timestamp}`;
-    }
+    const timestamp = new Date().getTime();
+    document.getElementById('radar-image').src = 
+        `https://radar.weather.gov/ridge/Overlays/Loop/NatLoop.gif?${timestamp}`;
+}
 
     function fetchLocationAndWeather() {
         if (!navigator.geolocation) {

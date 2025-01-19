@@ -2,7 +2,9 @@
 The SkyCast 1000 is the first of its branch. a basic weather data puller with no middleware! just sit back, go to the website, or host it yourself! It's easy! As she is the first of her branch compared to the many of the greats like the real WeatherSTAR, she isn't perfect. As you'd expect, she is very simple, but functional.
 
 ## Got Bugs?
-Report them with Issues! Don't go mass pinging me saying "I Have X Issue!" "Why is it doing X?"
+Report them with Issues!
+Or
+Email us at skycast@boredom.dev
 
 ### License
   Blah Blah Blah GNU General Pubic License V3
